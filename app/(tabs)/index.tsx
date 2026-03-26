@@ -1,98 +1,174 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { LinearGradient } from "expo-linear-gradient";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Chip, Surface } from "react-native-paper";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useThemeStore } from "@/stores/themeStore";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+// Install: npx expo install expo-linear-gradient
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+const DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
+function formatDate(d: Date) {
+  return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
+export default function HomeScreen() {
+  const { theme, liturgicalDay } = useThemeStore();
+  const today = new Date();
+
+  const s = StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.background },
+    scroll: { flex: 1 },
+    hero: {
+      paddingHorizontal: 24,
+      paddingTop: 48,
+      paddingBottom: 32,
+      borderBottomLeftRadius: 28,
+      borderBottomRightRadius: 28,
+    },
+    appName: {
+      fontSize: 13,
+      fontWeight: "700",
+      letterSpacing: 4,
+      color: theme.textMuted,
+      textTransform: "uppercase",
+      marginBottom: 4,
+    },
+    emoji: { fontSize: 40, marginBottom: 8 },
+    seasonLabel: {
+      fontSize: 28,
+      fontWeight: "800",
+      color: theme.text,
+      marginBottom: 4,
+    },
+    dayName: { fontSize: 16, color: theme.textMuted, marginBottom: 12 },
+    dateText: { fontSize: 13, color: theme.textMuted },
+    content: { padding: 20, gap: 16 },
+    sectionTitle: {
+      fontSize: 13,
+      fontWeight: "700",
+      letterSpacing: 2,
+      color: theme.textMuted,
+      textTransform: "uppercase",
+      marginBottom: 8,
+    },
+    card: { borderRadius: 16, padding: 16, backgroundColor: theme.surface },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: theme.text,
+      marginBottom: 4,
+    },
+    cardBody: { fontSize: 14, color: theme.textMuted, lineHeight: 20 },
+    countdownBox: {
+      borderRadius: 16,
+      padding: 16,
+      backgroundColor: theme.surface,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    countdownNum: { fontSize: 36, fontWeight: "900", color: theme.primary },
+    countdownLbl: { fontSize: 14, color: theme.textMuted },
+    countdownSub: { fontSize: 12, color: theme.textMuted },
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  });
+
+  return (
+    <SafeAreaView style={s.safe} edges={["top"]}>
+      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
+        {/* Hero Header */}
+        <LinearGradient
+          colors={theme.gradient as [string, string]}
+          style={s.hero}
+        >
+          <Text style={s.appName}>✝ Sanctify</Text>
+          <Text style={s.emoji}>{theme.emoji}</Text>
+          <Text style={s.seasonLabel}>{liturgicalDay.seasonLabel}</Text>
+          <Text style={s.dayName}>{liturgicalDay.dayName}</Text>
+          <Text style={s.dateText}>{formatDate(today)}</Text>
+        </LinearGradient>
+
+        <View style={s.content}>
+          {/* Countdown */}
+          {liturgicalDay.countdown && (
+            <>
+              <Text style={s.sectionTitle}>Upcoming</Text>
+              <View style={s.countdownBox}>
+                <Text style={s.countdownNum}>
+                  {liturgicalDay.countdown.days}
+                </Text>
+                <View>
+                  <Text style={s.cardTitle}>
+                    days until {liturgicalDay.countdown.label}
+                  </Text>
+                  <Text style={s.countdownSub}>Keep the faith 🙏</Text>
+                </View>
+              </View>
+            </>
+          )}
+
+          {/* Saint of the Day placeholder */}
+          <Text style={s.sectionTitle}>Saint of the Day</Text>
+          <Surface style={s.card} elevation={0}>
+            <Text style={s.cardTitle}>🕊️ Saint of the Day</Text>
+            <Text style={s.cardBody}>
+              Loading saint data... {"\n"}(We'll wire in real data in Phase 2)
+            </Text>
+          </Surface>
+
+          {/* Quick Actions */}
+          <Text style={s.sectionTitle}>Quick Actions</Text>
+          <View style={s.chipRow}>
+            {[
+              "🙏 Morning Prayer",
+              "📖 Today's Readings",
+              "📿 Rosary",
+              "✝️ Confession Prep",
+            ].map((label) => (
+              <Chip
+                key={label}
+                style={{ backgroundColor: theme.surface }}
+                textStyle={{ color: theme.text, fontSize: 13 }}
+              >
+                {label}
+              </Chip>
+            ))}
+          </View>
+
+          {/* Daily Readings teaser */}
+          <Text style={s.sectionTitle}>Today's Gospel</Text>
+          <Surface style={s.card} elevation={0}>
+            <Text style={s.cardTitle}>📖 Daily Readings</Text>
+            <Text style={s.cardBody}>
+              Mass readings will appear here once we wire in the USCCB API in
+              Phase 3.
+            </Text>
+          </Surface>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}

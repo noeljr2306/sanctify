@@ -1,50 +1,84 @@
-# Welcome to your Expo app 👋
+# ✝️ Sanctify – Catholic Faith App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> 🚧 **Under Construction** — A deeply personal, liturgically-aware Catholic companion app.
 
-## Get started
+---
 
-1. Install dependencies
+## 🎯 What is Sanctify?
 
-   ```bash
-   npm install
-   ```
+**Sanctify** is a mobile app designed to help Catholics pray, grow in faith, and live in harmony with the rhythms of the Church year — right from their phone. Everything in the app adapts to the liturgical season, making faith a natural part of daily life.
 
-2. Start the app
+### Core Features Include:
 
-   ```bash
-   npx expo start
-   ```
+- 📅 **Liturgical Calendar** with dynamic seasonal theming (Purple/White/Green/Red)
+- 🙏 **Prayer Hub** — Rosary, Daily Prayers, Divine Mercy Chaplet, Liturgy of the Hours
+- 📖 **Daily Mass Readings** with Lectio Divina meditation mode
+- 🕯️ **Confession Prep** — Examination of conscience, Act of Contrition guide
+- 📿 **Sacramental Life Tracker** — Baptism, confirmation, marriage anniversaries
+- 🎙️ **Faith Formation** — Catechism of the Day, Catholic Q&A, doctrine explainers
+- 🕍 **Parish Finder** — Locate nearby parishes, Mass times, adoration chapels
+- 👨‍👩‍👧 **Family Features** — Family rosary mode, children's prayers, shared calendar
+- 🔔 **Smart Notifications** — Angelus bell, Mass readings, Saint of the Day alerts
+- 🌍 **Community Features** — Prayer wall, prayer requests, pilgrimage tracker
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🛠️ Technologies Used
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+This project is built with modern, production-ready technologies:
 
-## Get a fresh project
+| Technology                 | Purpose                                      |
+| -------------------------- | -------------------------------------------- |
+| **⚛️ React Native + Expo** | Cross-platform mobile (iOS/Android/Web)      |
+| **🎨 Tailwind CSS**        | Responsive utility-first styling             |
+| **📘 TypeScript**          | Type-safe development                        |
+| **🗂️ Expo Router**         | File-based routing & navigation              |
+| **🎭 Custom Theming**      | Seasonal color/branding system               |
+| **📱 Native APIs**         | Notifications, haptics, calendar integration |
 
-When you're ready, run:
+---
+
+## 🚀 Quick Start
 
 ```bash
-npm run reset-project
+# Install dependencies
+npm install
+
+# Start the development server
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Then open in:
 
-## Learn more
+- 📱 **iOS Simulator** — Press `i`
+- 🤖 **Android Emulator** — Press `a`
+- 🌐 **Web** — Press `w`
+- 📲 **Expo Go** — Scan QR code on your phone
 
-To learn more about developing your project with Expo, look at the following resources:
+---
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 📝 Important Notes
 
-## Join the community
+✅ **Project Status**
 
-Join our community of developers creating universal apps.
+- 🏗️ Under active development
+- ⛪ Theological accuracy and Catholic teaching are top priorities
+- 📱 Built with React Native for cross-platform reach
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+✅ **Design Principles**
+
+- 🎨 **Liturgically-Aware** — Everything adapts to the Church calendar
+- 🙏 **Spiritually Focused** — Not a distraction, a companion to faith
+- 👥 **Community-Centered** — Designed for Catholics at all levels
+- 🔐 **Privacy First** — User data security by design
+
+✅ **Vision**
+
+- Create a app that serves the Catholic community authentically
+- Make liturgical living accessible and daily
+- Support both individual and family prayer
+- Integrate sacramental life with modern technology
+
+---
+
+**Built with ❤️ for the Catholic community** ⛪✨
