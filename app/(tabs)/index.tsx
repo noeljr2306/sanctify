@@ -1,5 +1,6 @@
 import { useThemeStore } from "@/stores/themeStore";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import React from "react";
 import {
   ScrollView,
@@ -197,12 +198,16 @@ export default function HomeScreen() {
           </View>
           <View style={s.actionGrid}>
             {[
-              { label: "Morning Prayer", icon: "🙏" },
-              { label: "Readings", icon: "📖" },
-              { label: "Rosary", icon: "📿" },
-              { label: "Confession", icon: "✝️" },
+              { label: "Morning Prayer", icon: "🙏", route: "/prayer" },
+              { label: "Readings", icon: "📖", route: "/readings" },
+              { label: "Rosary", icon: "📿", route: "/roasry" },
+              { label: "Confession", icon: "✝️", route: "/confession" },
             ].map((item) => (
-              <TouchableOpacity key={item.label} style={s.actionButton}>
+              <TouchableOpacity
+                key={item.label}
+                style={s.actionButton}
+                onPress={() => router.push(item.route)}
+              >
                 <Text style={s.actionEmoji}>{item.icon}</Text>
                 <Text
                   style={{ color: theme.text, fontWeight: "600", fontSize: 13 }}

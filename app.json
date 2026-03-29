@@ -7,35 +7,39 @@
     "web": {
       "bundler": "metro"
     },
+    "scheme": "sanctify",
     "plugins": [
       "expo-router",
+      "@react-native-google-signin/google-signin",
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/images/logo.png",
           "color": "#6B21A8",
           "sounds": []
         }
       ]
     ],
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourname.sanctify"
+      "bundleIdentifier": "com.alto.sanctify"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yourname.sanctify"
-    }
+      "googleServicesFile": "./google-services.json",
+      "package": "com.alto.sanctify"
+    },
+   
   }
 }

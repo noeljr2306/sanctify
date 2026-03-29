@@ -94,6 +94,40 @@ export default function ReadingsScreen() {
       </SafeAreaView>
     );
 
+  if (error || !readings)
+    return (
+      <SafeAreaView style={[s.safe, s.center]}>
+        <MaterialCommunityIcons
+          name="wifi-off"
+          size={48}
+          color={theme.textMuted}
+        />
+        <Text
+          style={{
+            marginTop: 12,
+            color: theme.text,
+            fontWeight: "600",
+            textAlign: "center",
+            paddingHorizontal: 40,
+          }}
+        >
+          {error || "Unable to load today's readings"}
+        </Text>
+        <TouchableOpacity
+          style={{
+            marginTop: 20,
+            backgroundColor: theme.primary,
+            paddingHorizontal: 24,
+            paddingVertical: 12,
+            borderRadius: 8,
+          }}
+          onPress={loadReadings}
+        >
+          <Text style={{ color: "#fff", fontWeight: "600" }}>Try Again</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <View style={s.header}>

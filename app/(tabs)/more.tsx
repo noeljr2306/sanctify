@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 
 const MENU_ITEMS = [
@@ -55,16 +57,16 @@ const MENU_ITEMS = [
       {
         icon: "map-marker-radius",
         color: "#166534",
-        label: "Parish Finder",
-        sub: "Find Mass times near you",
-        route: null,
+        label: "Parish & Community",
+        sub: "Parish finder, adoration & prayer wall",
+        route: "/community",
       },
       {
         icon: "account-group",
         color: "#BE123C",
-        label: "Family Faith",
-        sub: "Family rosary, children's prayers",
-        route: null,
+        label: "Seasonal & Family",
+        sub: "Lent, Advent, Chaplets & Kids' Prayers",
+        route: "/seasonal",
       },
       {
         icon: "notebook-edit",
@@ -79,7 +81,15 @@ const MENU_ITEMS = [
 
 export default function MoreScreen() {
   const { theme } = useThemeStore();
+  const { user, signOut } = useAuthStore();
   const router = useRouter();
+
+  const handleSignOut = () => {
+    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Sign Out", style: "destructive", onPress: signOut },
+    ]);
+  };
 
   const s = StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.background },
