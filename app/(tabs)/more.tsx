@@ -24,6 +24,18 @@ const MENU_ITEMS = [
     ],
   },
   {
+    section: "Settings",
+    items: [
+      {
+        icon: "bell-ring",
+        color: "#6B21A8",
+        label: "Notifications",
+        sub: "Angelus bells, prayer reminders & alerts",
+        route: "/notifications",
+      },
+    ],
+  },
+  {
     section: "Coming Soon",
     items: [
       {
@@ -37,8 +49,8 @@ const MENU_ITEMS = [
         icon: "book-open-variant",
         color: "#B45309",
         label: "Faith Formation",
-        sub: "Catechism of the Day, Catholic Q&A",
-        route: null,
+        sub: "Journal, Catechism, Q&A & Quiz",
+        route: "/formation",
       },
       {
         icon: "map-marker-radius",
