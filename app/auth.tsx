@@ -1,35 +1,34 @@
-import { supabase } from "@/lib/supabase";
-import { isGoogleSigninAvailable, useAuthStore } from "@/stores/authStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useThemeStore } from "@/stores/themeStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import * as Google from "expo-auth-session/providers/google";
 import { useRouter } from "expo-router";
-import * as WebBrowser from "expo-web-browser";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Animated,
   Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// Seasonal solid background colors
 const SEASON_BG: Record<string, string> = {
   advent: "#1A0A2E",
   christmas: "#1A1A2E",
   ordinary_time: "#0A1F0A",
   lent: "#1E0A3C",
   holy_week: "#1A0000",
-  easter: "#FFFBEB",
+  easter: "#1A1500",
   pentecost: "#1A0000",
 };
 
-// Seasonal accent colors (for glow & text)
 const SEASON_ACCENT: Record<string, string> = {
   advent: "#A855F7",
   christmas: "#F59E0B",
@@ -40,178 +39,135 @@ const SEASON_ACCENT: Record<string, string> = {
   pentecost: "#DC2626",
 };
 
-WebBrowser.maybeCompleteAuthSession();
-
-const GOOGLE_CLIENT_ID =
-  "1021355009817-19erk4ct538k29gmhfav6ir16256k2ik.apps.googleusercontent.com";
+type AuthMode = "welcome" | "signin" | "signup";
 
 export default function AuthScreen() {
   const { theme, liturgicalDay } = useThemeStore();
-  const { signInWithGoogle, signInGuest, loading, error, clearError } =
-    useAuthStore();
+  const { signIn, signUp, loading, error, clearError } = useAuthStore();
   const router = useRouter();
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: GOOGLE_CLIENT_ID,
-    androidClientId: GOOGLE_CLIENT_ID,
-    webClientId: GOOGLE_CLIENT_ID,
-    scopes: ["profile", "email"],
-    redirectUri: "https://auth.expo.io/@alto/sanctify",
-  });
-
-  const googleAvailable = isGoogleSigninAvailable();
 
   const season = liturgicalDay.season;
   const bgColor = SEASON_BG[season] ?? "#0A0A1A";
-  const accentColor = SEASON_ACCENT[season] ?? theme.primary;
-  const isLightSeason = season === "easter";
+  const accent = SEASON_ACCENT[season] ?? theme.primary;
 
-  // Animations
+  const [mode, setMode] = useState<AuthMode>("welcome");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+
+  // Entry animations
   const crossScale = useRef(new Animated.Value(0.6)).current;
   const crossOpacity = useRef(new Animated.Value(0)).current;
-  const glowScale = useRef(new Animated.Value(0.8)).current;
-  const titleOpacity = useRef(new Animated.Value(0)).current;
-  const btnOpacity = useRef(new Animated.Value(0)).current;
   const glowPulse = useRef(new Animated.Value(1)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const formY = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
-    // Entry animation sequence
-    Animated.sequence([
-      // Cross appears
-      Animated.parallel([
-        Animated.spring(crossScale, {
-          toValue: 1,
-          tension: 60,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-        Animated.timing(crossOpacity, {
-          toValue: 1,
-          duration: 600,
-          useNativeDriver: true,
-        }),
-        Animated.spring(glowScale, {
-          toValue: 1,
-          tension: 50,
-          friction: 10,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Title fades in
-      Animated.timing(titleOpacity, {
+    Animated.parallel([
+      Animated.spring(crossScale, {
         toValue: 1,
-        duration: 500,
+        tension: 60,
+        friction: 8,
         useNativeDriver: true,
       }),
-      // Buttons fade in
-      Animated.timing(btnOpacity, {
+      Animated.timing(crossOpacity, {
         toValue: 1,
-        duration: 400,
+        duration: 600,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Glow pulse loop
     Animated.loop(
       Animated.sequence([
         Animated.timing(glowPulse, {
-          toValue: 1.15,
-          duration: 2000,
+          toValue: 1.12,
+          duration: 2200,
           useNativeDriver: true,
         }),
         Animated.timing(glowPulse, {
           toValue: 1,
-          duration: 2000,
+          duration: 2200,
           useNativeDriver: true,
         }),
       ]),
     ).start();
   }, []);
 
+  // Animate form in when mode changes
+  useEffect(() => {
+    if (mode !== "welcome") {
+      formOpacity.setValue(0);
+      formY.setValue(24);
+      Animated.parallel([
+        Animated.timing(formOpacity, {
+          toValue: 1,
+          duration: 350,
+          useNativeDriver: true,
+        }),
+        Animated.spring(formY, {
+          toValue: 0,
+          tension: 80,
+          friction: 10,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [mode]);
+
   useEffect(() => {
     if (error) {
-      Alert.alert("Sign In Error", error, [
-        { text: "OK", onPress: clearError },
-      ]);
+      Alert.alert("Error", error, [{ text: "OK", onPress: clearError }]);
     }
   }, [error]);
 
-  useEffect(() => {
-    const processGoogleResponse = async () => {
-      if (response?.type === "success") {
-        const idToken = response.authentication?.idToken;
-        if (!idToken) {
-          Alert.alert("Sign In Error", "Google did not return an ID token.");
-          return;
-        }
-
-        try {
-          const { data, error: authError } =
-            await supabase.auth.signInWithIdToken({
-              provider: "google",
-              token: idToken,
-            });
-
-          if (authError) throw authError;
-
-          // Rehydrate state after success
-          await useAuthStore.getState().hydrate();
-          router.replace("/(tabs)" as never);
-        } catch (e: any) {
-          Alert.alert("Sign In Error", e?.message ?? "Google sign in failed.");
-        }
-      }
-    };
-
-    processGoogleResponse();
-  }, [response]);
-
-  const handleGoogle = async () => {
-    if (googleAvailable) {
-      await signInWithGoogle();
-    } else if (request) {
-      await promptAsync();
-    } else {
-      Alert.alert(
-        "Google sign in unavailable",
-        "Please try again in a moment.",
-      );
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      Alert.alert("Please fill in all fields.");
+      return;
     }
+    await signIn(email, password);
   };
 
-  const handleGuest = () => {
-    signInGuest();
-    router.replace("/(tabs)" as never);
+  const handleSignUp = async () => {
+    if (!fullName || !email || !password) {
+      Alert.alert("Please fill in all fields.");
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert("Password must be at least 6 characters.");
+      return;
+    }
+    await signUp(email, password, fullName);
   };
+
+  const handleGuest = () => router.replace("/(tabs)" as never);
 
   const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: bgColor },
-    safe: {
-      flex: 1,
-      justifyContent: "space-between",
-      alignItems: "center",
-      paddingVertical: 60,
-    },
-    topSection: {
-      flex: 1,
+    safe: { flex: 1 },
+    scroll: { flexGrow: 1, justifyContent: "space-between" },
+
+    // ── Logo section ──
+    logoSection: { alignItems: "center", paddingTop: 64, paddingBottom: 32 },
+    glowOuter: {
       justifyContent: "center",
       alignItems: "center",
-      gap: 0,
+      marginBottom: 20,
     },
-    glowOuter: { justifyContent: "center", alignItems: "center" },
     glow: {
-      width: 260,
-      height: 260,
-      borderRadius: 130,
-      backgroundColor: accentColor,
-      opacity: 0.12,
+      width: 220,
+      height: 220,
+      borderRadius: 110,
+      backgroundColor: accent,
+      opacity: 0.1,
       position: "absolute",
     },
-    glowMid: {
-      width: 180,
-      height: 180,
-      borderRadius: 90,
-      backgroundColor: accentColor,
+    glowInner: {
+      width: 150,
+      height: 150,
+      borderRadius: 75,
+      backgroundColor: accent,
       opacity: 0.1,
       position: "absolute",
     },
@@ -221,178 +177,378 @@ export default function AuthScreen() {
       justifyContent: "center",
       alignItems: "center",
     },
-    crossImg: { width: 120, height: 120, tintColor: "#FFFFFF" },
-    // If no image, show a fallback cross icon
-    crossFallback: { opacity: 1 },
-    titleBlock: { alignItems: "center", gap: 6, marginTop: 28 },
+    crossImg: { width: 120, height: 120, resizeMode: "contain" },
     appName: {
-      fontSize: 42,
+      fontSize: 38,
       fontWeight: "900",
+      color: "#fff",
       letterSpacing: 3,
-      color: "#FFFFFF",
-      textShadowColor: accentColor,
+      textShadowColor: accent,
       textShadowOffset: { width: 0, height: 0 },
-      textShadowRadius: 20,
+      textShadowRadius: 16,
     },
     tagline: {
-      fontSize: 15,
-      color: "rgba(255,255,255,0.6)",
+      fontSize: 14,
+      color: "rgba(255,255,255,0.55)",
       letterSpacing: 1,
       fontStyle: "italic",
+      marginTop: 4,
     },
     seasonPill: {
-      marginTop: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 6,
+      marginTop: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 5,
       borderRadius: 20,
       borderWidth: 1,
-      borderColor: accentColor + "60",
-      backgroundColor: accentColor + "18",
+      borderColor: accent + "55",
+      backgroundColor: accent + "18",
     },
     seasonText: {
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: "700",
-      color: accentColor,
+      color: accent,
       letterSpacing: 1,
     },
-    bottomSection: { width: "100%", paddingHorizontal: 32, gap: 14 },
-    googleBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 12,
+
+    // ── Welcome buttons ──
+    welcomeSection: { padding: 28, gap: 12 },
+    primaryBtn: {
       borderRadius: 16,
       paddingVertical: 16,
-      backgroundColor: "#FFFFFF",
-      shadowColor: "#000",
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 6,
-    },
-    googleLbl: { fontSize: 16, fontWeight: "700", color: "#1A1A1A" },
-    guestBtn: {
-      flexDirection: "row",
       alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
+      backgroundColor: accent,
+    },
+    primaryLbl: { fontSize: 16, fontWeight: "800", color: "#fff" },
+    secondaryBtn: {
       borderRadius: 16,
-      paddingVertical: 14,
+      paddingVertical: 15,
+      alignItems: "center",
       borderWidth: 1,
       borderColor: "rgba(255,255,255,0.2)",
-      backgroundColor: "rgba(255,255,255,0.06)",
+      backgroundColor: "rgba(255,255,255,0.05)",
     },
-    guestLbl: {
+    secondaryLbl: {
       fontSize: 15,
       fontWeight: "600",
       color: "rgba(255,255,255,0.7)",
     },
-    disclaimer: {
-      fontSize: 11,
-      color: "rgba(255,255,255,0.3)",
-      textAlign: "center",
-      lineHeight: 18,
+    guestBtn: { alignItems: "center", paddingVertical: 10 },
+    guestLbl: { fontSize: 14, color: "rgba(255,255,255,0.4)" },
+
+    // ── Form ──
+    formSection: { padding: 24, paddingTop: 0, gap: 14 },
+    formTitle: {
+      fontSize: 24,
+      fontWeight: "900",
+      color: "#fff",
+      marginBottom: 4,
+    },
+    formSub: { fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 8 },
+    inputWrap: {
+      borderRadius: 14,
+      backgroundColor: "rgba(255,255,255,0.08)",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.12)",
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+    },
+    input: { flex: 1, paddingVertical: 14, fontSize: 15, color: "#fff" },
+    submitBtn: {
+      borderRadius: 16,
+      paddingVertical: 16,
+      alignItems: "center",
+      marginTop: 4,
+    },
+    submitLbl: { fontSize: 16, fontWeight: "800", color: "#fff" },
+    switchRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 6,
+      marginTop: 4,
+    },
+    switchText: { fontSize: 14, color: "rgba(255,255,255,0.5)" },
+    switchLink: { fontSize: 14, fontWeight: "700", color: accent },
+    backBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingBottom: 8,
+    },
+    backLbl: { fontSize: 14, color: "rgba(255,255,255,0.5)" },
+    divider: {
+      height: 1,
+      backgroundColor: "rgba(255,255,255,0.08)",
+      marginVertical: 4,
     },
   });
 
   return (
     <View style={s.container}>
-      <SafeAreaView style={s.safe}>
-        {/* ── Top: Cross + Title ── */}
-        <View style={s.topSection}>
-          {/* Glow rings behind cross */}
-          <Animated.View
-            style={[s.glowOuter, { transform: [{ scale: glowPulse }] }]}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <SafeAreaView style={s.safe}>
+          <ScrollView
+            contentContainerStyle={s.scroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            <Animated.View
-              style={[s.glow, { transform: [{ scale: glowScale }] }]}
-            />
-            <Animated.View
-              style={[s.glowMid, { transform: [{ scale: glowScale }] }]}
-            />
-
-            {/* Cross */}
-            <Animated.View
-              style={[
-                s.crossWrap,
-                { opacity: crossOpacity, transform: [{ scale: crossScale }] },
-              ]}
-            >
-              {/* 
-                Place your cross image at assets/cross.png
-                The tintColor makes it white regardless of the original color
-              */}
-              <Image
-                source={require("../assets/images/logo.png")}
-                style={s.crossImg}
-                resizeMode="contain"
-              />
-            </Animated.View>
-          </Animated.View>
-
-          {/* App name + tagline */}
-          <Animated.View style={[s.titleBlock, { opacity: titleOpacity }]}>
-            <Text style={s.appName}>Sanctify</Text>
-            <Text style={s.tagline}>A Catholic Companion</Text>
-            <View style={s.seasonPill}>
-              <Text style={s.seasonText}>
-                {theme.emoji} {liturgicalDay.seasonLabel.toUpperCase()}
-              </Text>
-            </View>
-          </Animated.View>
-        </View>
-
-        {/* ── Bottom: Auth buttons ── */}
-        <Animated.View style={[s.bottomSection, { opacity: btnOpacity }]}>
-          {/* Google Sign In */}
-          <TouchableOpacity
-            style={s.googleBtn}
-            onPress={handleGoogle}
-            disabled={loading || (!googleAvailable && !request)}
-            activeOpacity={0.85}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#1A1A1A" />
-            ) : (
-              <>
-                {/* Google G logo using text — replace with an SVG if preferred */}
-                <Text
-                  style={{ fontSize: 20, fontWeight: "900", color: "#4285F4" }}
+            {/* ── Logo ── */}
+            <View style={s.logoSection}>
+              <Animated.View
+                style={[s.glowOuter, { transform: [{ scale: glowPulse }] }]}
+              >
+                <View style={s.glow} />
+                <View style={s.glowInner} />
+                <Animated.View
+                  style={[
+                    s.crossWrap,
+                    {
+                      opacity: crossOpacity,
+                      transform: [{ scale: crossScale }],
+                    },
+                  ]}
                 >
-                  G
+                  <Image
+                    source={require("../assets/images/logo.png")}
+                    style={s.crossImg}
+                    resizeMode="contain"
+                  />
+                </Animated.View>
+              </Animated.View>
+              <Text style={s.appName}>Sanctify</Text>
+              <Text style={s.tagline}>A Catholic Companion</Text>
+              <View style={s.seasonPill}>
+                <Text style={s.seasonText}>
+                  {theme.emoji} {liturgicalDay.seasonLabel.toUpperCase()}
                 </Text>
-                <Text style={s.googleLbl}>Continue with Google</Text>
-              </>
+              </View>
+            </View>
+
+            {/* ── Welcome Mode ── */}
+            {mode === "welcome" && (
+              <View style={s.welcomeSection}>
+                <TouchableOpacity
+                  style={s.primaryBtn}
+                  onPress={() => setMode("signup")}
+                >
+                  <Text style={s.primaryLbl}>Create Account</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.secondaryBtn}
+                  onPress={() => setMode("signin")}
+                >
+                  <Text style={s.secondaryLbl}>Sign In</Text>
+                </TouchableOpacity>
+                <View style={s.divider} />
+                <TouchableOpacity style={s.guestBtn} onPress={handleGuest}>
+                  <Text style={s.guestLbl}>Continue as Guest</Text>
+                </TouchableOpacity>
+              </View>
             )}
-          </TouchableOpacity>
-          {!googleAvailable && (
-            <Text style={[s.disclaimer, { color: "#FFD700", marginTop: 8 }]}>
-              Google native sign-in is unavailable in Expo Go. Install the dev
-              client to use Google sign-in, or continue as guest.
-            </Text>
-          )}
 
-          {/* Guest / Skip */}
-          <TouchableOpacity
-            style={s.guestBtn}
-            onPress={handleGuest}
-            disabled={loading}
-            activeOpacity={0.75}
-          >
-            <MaterialCommunityIcons
-              name="account-outline"
-              size={18}
-              color="rgba(255,255,255,0.6)"
-            />
-            <Text style={s.guestLbl}>Continue as Guest</Text>
-          </TouchableOpacity>
+            {/* ── Sign In Mode ── */}
+            {mode === "signin" && (
+              <Animated.View
+                style={[
+                  s.formSection,
+                  { opacity: formOpacity, transform: [{ translateY: formY }] },
+                ]}
+              >
+                <TouchableOpacity
+                  style={s.backBtn}
+                  onPress={() => setMode("welcome")}
+                >
+                  <MaterialCommunityIcons
+                    name="arrow-left"
+                    size={18}
+                    color="rgba(255,255,255,0.5)"
+                  />
+                  <Text style={s.backLbl}>Back</Text>
+                </TouchableOpacity>
 
-          <Text style={s.disclaimer}>
-            By continuing, you agree to our Terms of Service.{"\n"}
-            Your data is stored privately and never sold.
-          </Text>
-        </Animated.View>
-      </SafeAreaView>
+                <Text style={s.formTitle}>Welcome back 🙏</Text>
+                <Text style={s.formSub}>
+                  Sign in to continue your faith journey.
+                </Text>
+
+                <View style={s.inputWrap}>
+                  <MaterialCommunityIcons
+                    name="email-outline"
+                    size={18}
+                    color="rgba(255,255,255,0.4)"
+                    style={{ marginRight: 8 }}
+                  />
+                  <TextInput
+                    style={s.input}
+                    placeholder="Email address"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+
+                <View style={s.inputWrap}>
+                  <MaterialCommunityIcons
+                    name="lock-outline"
+                    size={18}
+                    color="rgba(255,255,255,0.4)"
+                    style={{ marginRight: 8 }}
+                  />
+                  <TextInput
+                    style={s.input}
+                    placeholder="Password"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPass}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity onPress={() => setShowPass((v) => !v)}>
+                    <MaterialCommunityIcons
+                      name={showPass ? "eye-off" : "eye"}
+                      size={18}
+                      color="rgba(255,255,255,0.4)"
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={[s.submitBtn, { backgroundColor: accent }]}
+                  onPress={handleSignIn}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={s.submitLbl}>Sign In</Text>
+                  )}
+                </TouchableOpacity>
+
+                <View style={s.switchRow}>
+                  <Text style={s.switchText}>Don&apos;t have an account?</Text>
+                  <TouchableOpacity onPress={() => setMode("signup")}>
+                    <Text style={s.switchLink}>Create one</Text>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            )}
+
+            {/* ── Sign Up Mode ── */}
+            {mode === "signup" && (
+              <Animated.View
+                style={[
+                  s.formSection,
+                  { opacity: formOpacity, transform: [{ translateY: formY }] },
+                ]}
+              >
+                <TouchableOpacity
+                  style={s.backBtn}
+                  onPress={() => setMode("welcome")}
+                >
+                  <MaterialCommunityIcons
+                    name="arrow-left"
+                    size={18}
+                    color="rgba(255,255,255,0.5)"
+                  />
+                  <Text style={s.backLbl}>Back</Text>
+                </TouchableOpacity>
+
+                <Text style={s.formTitle}>Join Sanctify ✝️</Text>
+                <Text style={s.formSub}>
+                  Create your free account to begin.
+                </Text>
+
+                <View style={s.inputWrap}>
+                  <MaterialCommunityIcons
+                    name="account-outline"
+                    size={18}
+                    color="rgba(255,255,255,0.4)"
+                    style={{ marginRight: 8 }}
+                  />
+                  <TextInput
+                    style={s.input}
+                    placeholder="Full name"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={fullName}
+                    onChangeText={setFullName}
+                    autoCapitalize="words"
+                  />
+                </View>
+
+                <View style={s.inputWrap}>
+                  <MaterialCommunityIcons
+                    name="email-outline"
+                    size={18}
+                    color="rgba(255,255,255,0.4)"
+                    style={{ marginRight: 8 }}
+                  />
+                  <TextInput
+                    style={s.input}
+                    placeholder="Email address"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
+
+                <View style={s.inputWrap}>
+                  <MaterialCommunityIcons
+                    name="lock-outline"
+                    size={18}
+                    color="rgba(255,255,255,0.4)"
+                    style={{ marginRight: 8 }}
+                  />
+                  <TextInput
+                    style={s.input}
+                    placeholder="Password (min 6 characters)"
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPass}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity onPress={() => setShowPass((v) => !v)}>
+                    <MaterialCommunityIcons
+                      name={showPass ? "eye-off" : "eye"}
+                      size={18}
+                      color="rgba(255,255,255,0.4)"
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={[s.submitBtn, { backgroundColor: accent }]}
+                  onPress={handleSignUp}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={s.submitLbl}>Create Account</Text>
+                  )}
+                </TouchableOpacity>
+
+                <View style={s.switchRow}>
+                  <Text style={s.switchText}>Already have an account?</Text>
+                  <TouchableOpacity onPress={() => setMode("signin")}>
+                    <Text style={s.switchLink}>Sign in</Text>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

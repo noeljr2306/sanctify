@@ -7,10 +7,8 @@
     "web": {
       "bundler": "metro"
     },
-    "scheme": "sanctify",
     "plugins": [
       "expo-router",
-      "@react-native-google-signin/google-signin",
       [
         "expo-notifications",
         {
@@ -21,10 +19,10 @@
       ]
     ],
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -39,6 +37,11 @@
       },
       "package": "com.alto.sanctify"
     },
-   
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "852414df-b073-4b12-9662-5ad559813e96"
+      }
+    }
   }
 }
