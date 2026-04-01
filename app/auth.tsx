@@ -1,5 +1,3 @@
-import { useAuthStore } from "@/stores/authStore";
-import { useThemeStore } from "@/stores/themeStore";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -8,6 +6,7 @@ import {
   Alert,
   Animated,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -15,9 +14,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuthStore } from "@/stores/authStore";
+import { useThemeStore } from "@/stores/themeStore";
 
 const SEASON_BG: Record<string, string> = {
   advent: "#1A0A2E",
@@ -46,9 +49,23 @@ export default function AuthScreen() {
   const { signIn, signUp, loading, error, clearError } = useAuthStore();
   const router = useRouter();
 
-  const season = liturgicalDay.season;
-  const bgColor = SEASON_BG[season] ?? "#0A0A1A";
-  const accent = SEASON_ACCENT[season] ?? theme.primary;
+  const { height: screenHeight } = useWindowDimensions();
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () =>
+      setKeyboardOpen(true),
+    );
+    const hide = Keyboard.addListener("keyboardDidHide", () =>
+      setKeyboardOpen(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  const bgColor = SEASON_BG[liturgicalDay.season] ?? "#0A0A1A";
+  const accent = SEASON_ACCENT[liturgicalDay.season] ?? theme.primary;
 
   const [mode, setMode] = useState<AuthMode>("welcome");
   const [fullName, setFullName] = useState("");
@@ -172,12 +189,12 @@ export default function AuthScreen() {
       position: "absolute",
     },
     crossWrap: {
-      width: 140,
-      height: 140,
+      width: 120,
+      height: 120,
       justifyContent: "center",
       alignItems: "center",
     },
-    crossImg: { width: 120, height: 120, resizeMode: "contain" },
+    crossImg: { width: 100, height: 100, tintColor: "#FFFFFF" },
     appName: {
       fontSize: 38,
       fontWeight: "900",
@@ -288,266 +305,292 @@ export default function AuthScreen() {
     <View style={s.container}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : "padding"}
+        keyboardVerticalOffset={Platform.OS === "android" ? 0 : 0}
       >
-        <SafeAreaView style={s.safe}>
-          <ScrollView
-            contentContainerStyle={s.scroll}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {/* ── Logo ── */}
-            <View style={s.logoSection}>
-              <Animated.View
-                style={[s.glowOuter, { transform: [{ scale: glowPulse }] }]}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <SafeAreaView style={s.safe}>
+            <ScrollView
+              contentContainerStyle={s.scroll}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              {/* ── Logo ── */}
+              <View
+                style={[
+                  s.logoSection,
+                  keyboardOpen && { paddingTop: 24, paddingBottom: 12 },
+                ]}
               >
-                <View style={s.glow} />
-                <View style={s.glowInner} />
+                <Animated.View
+                  style={[s.glowOuter, { transform: [{ scale: glowPulse }] }]}
+                >
+                  <View style={s.glow} />
+                  <View style={s.glowInner} />
+                  <Animated.View
+                    style={[
+                      s.crossWrap,
+                      {
+                        opacity: crossOpacity,
+                        transform: [{ scale: crossScale }],
+                      },
+                      keyboardOpen && { width: 70, height: 70 },
+                    ]}
+                  >
+                    <Image
+                      source={require("../assets/cross.png")}
+                      style={[
+                        s.crossImg,
+                        keyboardOpen && { width: 60, height: 60 },
+                      ]}
+                      resizeMode="contain"
+                    />
+                  </Animated.View>
+                </Animated.View>
+                {!keyboardOpen && (
+                  <>
+                    <Text style={s.appName}>Sanctify</Text>
+                    <Text style={s.tagline}>A Catholic Companion</Text>
+                    <View style={s.seasonPill}>
+                      <Text style={s.seasonText}>
+                        {theme.emoji} {liturgicalDay.seasonLabel.toUpperCase()}
+                      </Text>
+                    </View>
+                  </>
+                )}
+                {keyboardOpen && (
+                  <Text style={[s.appName, { fontSize: 26 }]}>Sanctify</Text>
+                )}
+              </View>
+
+              {/* ── Welcome Mode ── */}
+              {mode === "welcome" && (
+                <View style={s.welcomeSection}>
+                  <TouchableOpacity
+                    style={s.primaryBtn}
+                    onPress={() => setMode("signup")}
+                  >
+                    <Text style={s.primaryLbl}>Create Account</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.secondaryBtn}
+                    onPress={() => setMode("signin")}
+                  >
+                    <Text style={s.secondaryLbl}>Sign In</Text>
+                  </TouchableOpacity>
+                  <View style={s.divider} />
+                  <TouchableOpacity style={s.guestBtn} onPress={handleGuest}>
+                    <Text style={s.guestLbl}>Continue as Guest</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* ── Sign In Mode ── */}
+              {mode === "signin" && (
                 <Animated.View
                   style={[
-                    s.crossWrap,
+                    s.formSection,
                     {
-                      opacity: crossOpacity,
-                      transform: [{ scale: crossScale }],
+                      opacity: formOpacity,
+                      transform: [{ translateY: formY }],
                     },
                   ]}
                 >
-                  <Image
-                    source={require("../assets/images/logo.png")}
-                    style={s.crossImg}
-                    resizeMode="contain"
-                  />
+                  <TouchableOpacity
+                    style={s.backBtn}
+                    onPress={() => setMode("welcome")}
+                  >
+                    <MaterialCommunityIcons
+                      name="arrow-left"
+                      size={18}
+                      color="rgba(255,255,255,0.5)"
+                    />
+                    <Text style={s.backLbl}>Back</Text>
+                  </TouchableOpacity>
+
+                  <Text style={s.formTitle}>Welcome back 🙏</Text>
+                  <Text style={s.formSub}>
+                    Sign in to continue your faith journey.
+                  </Text>
+
+                  <View style={s.inputWrap}>
+                    <MaterialCommunityIcons
+                      name="email-outline"
+                      size={18}
+                      color="rgba(255,255,255,0.4)"
+                      style={{ marginRight: 8 }}
+                    />
+                    <TextInput
+                      style={s.input}
+                      placeholder="Email address"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+
+                  <View style={s.inputWrap}>
+                    <MaterialCommunityIcons
+                      name="lock-outline"
+                      size={18}
+                      color="rgba(255,255,255,0.4)"
+                      style={{ marginRight: 8 }}
+                    />
+                    <TextInput
+                      style={s.input}
+                      placeholder="Password"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPass}
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity onPress={() => setShowPass((v) => !v)}>
+                      <MaterialCommunityIcons
+                        name={showPass ? "eye-off" : "eye"}
+                        size={18}
+                        color="rgba(255,255,255,0.4)"
+                      />
+                    </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[s.submitBtn, { backgroundColor: accent }]}
+                    onPress={handleSignIn}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={s.submitLbl}>Sign In</Text>
+                    )}
+                  </TouchableOpacity>
+
+                  <View style={s.switchRow}>
+                    <Text style={s.switchText}>Don&apos;t have an account?</Text>
+                    <TouchableOpacity onPress={() => setMode("signup")}>
+                      <Text style={s.switchLink}>Create one</Text>
+                    </TouchableOpacity>
+                  </View>
                 </Animated.View>
-              </Animated.View>
-              <Text style={s.appName}>Sanctify</Text>
-              <Text style={s.tagline}>A Catholic Companion</Text>
-              <View style={s.seasonPill}>
-                <Text style={s.seasonText}>
-                  {theme.emoji} {liturgicalDay.seasonLabel.toUpperCase()}
-                </Text>
-              </View>
-            </View>
+              )}
 
-            {/* ── Welcome Mode ── */}
-            {mode === "welcome" && (
-              <View style={s.welcomeSection}>
-                <TouchableOpacity
-                  style={s.primaryBtn}
-                  onPress={() => setMode("signup")}
+              {/* ── Sign Up Mode ── */}
+              {mode === "signup" && (
+                <Animated.View
+                  style={[
+                    s.formSection,
+                    {
+                      opacity: formOpacity,
+                      transform: [{ translateY: formY }],
+                    },
+                  ]}
                 >
-                  <Text style={s.primaryLbl}>Create Account</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.secondaryBtn}
-                  onPress={() => setMode("signin")}
-                >
-                  <Text style={s.secondaryLbl}>Sign In</Text>
-                </TouchableOpacity>
-                <View style={s.divider} />
-                <TouchableOpacity style={s.guestBtn} onPress={handleGuest}>
-                  <Text style={s.guestLbl}>Continue as Guest</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* ── Sign In Mode ── */}
-            {mode === "signin" && (
-              <Animated.View
-                style={[
-                  s.formSection,
-                  { opacity: formOpacity, transform: [{ translateY: formY }] },
-                ]}
-              >
-                <TouchableOpacity
-                  style={s.backBtn}
-                  onPress={() => setMode("welcome")}
-                >
-                  <MaterialCommunityIcons
-                    name="arrow-left"
-                    size={18}
-                    color="rgba(255,255,255,0.5)"
-                  />
-                  <Text style={s.backLbl}>Back</Text>
-                </TouchableOpacity>
-
-                <Text style={s.formTitle}>Welcome back 🙏</Text>
-                <Text style={s.formSub}>
-                  Sign in to continue your faith journey.
-                </Text>
-
-                <View style={s.inputWrap}>
-                  <MaterialCommunityIcons
-                    name="email-outline"
-                    size={18}
-                    color="rgba(255,255,255,0.4)"
-                    style={{ marginRight: 8 }}
-                  />
-                  <TextInput
-                    style={s.input}
-                    placeholder="Email address"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                </View>
-
-                <View style={s.inputWrap}>
-                  <MaterialCommunityIcons
-                    name="lock-outline"
-                    size={18}
-                    color="rgba(255,255,255,0.4)"
-                    style={{ marginRight: 8 }}
-                  />
-                  <TextInput
-                    style={s.input}
-                    placeholder="Password"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPass}
-                    autoCapitalize="none"
-                  />
-                  <TouchableOpacity onPress={() => setShowPass((v) => !v)}>
+                  <TouchableOpacity
+                    style={s.backBtn}
+                    onPress={() => setMode("welcome")}
+                  >
                     <MaterialCommunityIcons
-                      name={showPass ? "eye-off" : "eye"}
+                      name="arrow-left"
+                      size={18}
+                      color="rgba(255,255,255,0.5)"
+                    />
+                    <Text style={s.backLbl}>Back</Text>
+                  </TouchableOpacity>
+
+                  <Text style={s.formTitle}>Join Sanctify ✝️</Text>
+                  <Text style={s.formSub}>
+                    Create your free account to begin.
+                  </Text>
+
+                  <View style={s.inputWrap}>
+                    <MaterialCommunityIcons
+                      name="account-outline"
                       size={18}
                       color="rgba(255,255,255,0.4)"
+                      style={{ marginRight: 8 }}
                     />
-                  </TouchableOpacity>
-                </View>
+                    <TextInput
+                      style={s.input}
+                      placeholder="Full name"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      value={fullName}
+                      onChangeText={setFullName}
+                      autoCapitalize="words"
+                    />
+                  </View>
 
-                <TouchableOpacity
-                  style={[s.submitBtn, { backgroundColor: accent }]}
-                  onPress={handleSignIn}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={s.submitLbl}>Sign In</Text>
-                  )}
-                </TouchableOpacity>
-
-                <View style={s.switchRow}>
-                  <Text style={s.switchText}>Don&apos;t have an account?</Text>
-                  <TouchableOpacity onPress={() => setMode("signup")}>
-                    <Text style={s.switchLink}>Create one</Text>
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
-            )}
-
-            {/* ── Sign Up Mode ── */}
-            {mode === "signup" && (
-              <Animated.View
-                style={[
-                  s.formSection,
-                  { opacity: formOpacity, transform: [{ translateY: formY }] },
-                ]}
-              >
-                <TouchableOpacity
-                  style={s.backBtn}
-                  onPress={() => setMode("welcome")}
-                >
-                  <MaterialCommunityIcons
-                    name="arrow-left"
-                    size={18}
-                    color="rgba(255,255,255,0.5)"
-                  />
-                  <Text style={s.backLbl}>Back</Text>
-                </TouchableOpacity>
-
-                <Text style={s.formTitle}>Join Sanctify ✝️</Text>
-                <Text style={s.formSub}>
-                  Create your free account to begin.
-                </Text>
-
-                <View style={s.inputWrap}>
-                  <MaterialCommunityIcons
-                    name="account-outline"
-                    size={18}
-                    color="rgba(255,255,255,0.4)"
-                    style={{ marginRight: 8 }}
-                  />
-                  <TextInput
-                    style={s.input}
-                    placeholder="Full name"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={fullName}
-                    onChangeText={setFullName}
-                    autoCapitalize="words"
-                  />
-                </View>
-
-                <View style={s.inputWrap}>
-                  <MaterialCommunityIcons
-                    name="email-outline"
-                    size={18}
-                    color="rgba(255,255,255,0.4)"
-                    style={{ marginRight: 8 }}
-                  />
-                  <TextInput
-                    style={s.input}
-                    placeholder="Email address"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                  />
-                </View>
-
-                <View style={s.inputWrap}>
-                  <MaterialCommunityIcons
-                    name="lock-outline"
-                    size={18}
-                    color="rgba(255,255,255,0.4)"
-                    style={{ marginRight: 8 }}
-                  />
-                  <TextInput
-                    style={s.input}
-                    placeholder="Password (min 6 characters)"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPass}
-                    autoCapitalize="none"
-                  />
-                  <TouchableOpacity onPress={() => setShowPass((v) => !v)}>
+                  <View style={s.inputWrap}>
                     <MaterialCommunityIcons
-                      name={showPass ? "eye-off" : "eye"}
+                      name="email-outline"
                       size={18}
                       color="rgba(255,255,255,0.4)"
+                      style={{ marginRight: 8 }}
                     />
-                  </TouchableOpacity>
-                </View>
+                    <TextInput
+                      style={s.input}
+                      placeholder="Email address"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
 
-                <TouchableOpacity
-                  style={[s.submitBtn, { backgroundColor: accent }]}
-                  onPress={handleSignUp}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={s.submitLbl}>Create Account</Text>
-                  )}
-                </TouchableOpacity>
+                  <View style={s.inputWrap}>
+                    <MaterialCommunityIcons
+                      name="lock-outline"
+                      size={18}
+                      color="rgba(255,255,255,0.4)"
+                      style={{ marginRight: 8 }}
+                    />
+                    <TextInput
+                      style={s.input}
+                      placeholder="Password (min 6 characters)"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPass}
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity onPress={() => setShowPass((v) => !v)}>
+                      <MaterialCommunityIcons
+                        name={showPass ? "eye-off" : "eye"}
+                        size={18}
+                        color="rgba(255,255,255,0.4)"
+                      />
+                    </TouchableOpacity>
+                  </View>
 
-                <View style={s.switchRow}>
-                  <Text style={s.switchText}>Already have an account?</Text>
-                  <TouchableOpacity onPress={() => setMode("signin")}>
-                    <Text style={s.switchLink}>Sign in</Text>
+                  <TouchableOpacity
+                    style={[s.submitBtn, { backgroundColor: accent }]}
+                    onPress={handleSignUp}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={s.submitLbl}>Create Account</Text>
+                    )}
                   </TouchableOpacity>
-                </View>
-              </Animated.View>
-            )}
-          </ScrollView>
-        </SafeAreaView>
+
+                  <View style={s.switchRow}>
+                    <Text style={s.switchText}>Already have an account?</Text>
+                    <TouchableOpacity onPress={() => setMode("signin")}>
+                      <Text style={s.switchLink}>Sign in</Text>
+                    </TouchableOpacity>
+                  </View>
+                </Animated.View>
+              )}
+            </ScrollView>
+          </SafeAreaView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </View>
   );

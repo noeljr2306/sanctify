@@ -1,67 +1,25 @@
 /**
- * Fetches daily Mass readings from the USCCB website.
- * Since USCCB doesn't have a public JSON API, we scrape their
- * daily readings page and parse the HTML.
- *
- * Endpoint: https://bible.usccb.org/bible/readings/{MMDDYY}.cfm
+ * Daily Mass Readings via Aelf.org API
+ * Free, no API key, returns accurate Catholic liturgical readings
+ * Docs: https://api.aelf.org
  */
 
 import { DailyReadings, Reading } from "@/types/reading.types";
 import { getLiturgicalDay } from "../utils/liturgicalCalendar";
-function todayCode(): string {
+
+function todayISO(): string {
+  return new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+}
+
+function formatDate(): string {
   const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  // Aelf uses DD/MM/YYYY
   const dd = String(d.getDate()).padStart(2, "0");
-  const yy = String(d.getFullYear()).slice(-2);
-  return `${mm}${dd}${yy}`;
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
-function dateStr(): string {
-  return new Date().toISOString().split("T")[0];
-}
-
-// Strip HTML tags from a string
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&rsquo;/g, "'")
-    .replace(/&ldquo;/g, '"')
-    .replace(/&rdquo;/g, '"')
-    .replace(/&mdash;/g, "—")
-    .replace(/&amp;/g, "&")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-// Parse a reading block from the USCCB HTML
-function parseReading(html: string, titleHint: string): Reading | null {
-  try {
-    // Extract the reading reference (e.g. "Isaiah 40:1-11")
-    const refMatch = html.match(/<h3[^>]*class="[^"]*reading[^"]*"[^>]*>(.*?)<\/h3>/is)
-      ?? html.match(/<strong>(.*?)<\/strong>/i);
-    const reference = refMatch ? stripHtml(refMatch[1]) : titleHint;
-
-    // Extract the body text
-    const bodyMatch = html.match(/<div[^>]*class="[^"]*reading-content[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
-      ?? html.match(/<p[^>]*>([\s\S]*?)<\/p>/gi);
-
-    let text = "";
-    if (Array.isArray(bodyMatch)) {
-      text = bodyMatch.map(stripHtml).join("\n\n");
-    } else if (bodyMatch) {
-      text = stripHtml(bodyMatch[1]);
-    }
-
-    return { title: titleHint, reference, text: text || "Text unavailable." };
-  } catch {
-    return null;
-  }
-}
-
-// Generate reflection questions from the gospel reference
 function generateReflections(gospelRef: string): string[] {
   return [
     `What word or phrase from today's Gospel (${gospelRef}) stands out to you?`,
@@ -71,26 +29,21 @@ function generateReflections(gospelRef: string): string[] {
   ];
 }
 
-// ── Fallback: returns a placeholder when the network fetch fails ──────────────
 function fallbackReadings(): DailyReadings {
   const litDay = getLiturgicalDay();
   return {
-    date: dateStr(),
+    date: todayISO(),
     liturgicalDay: litDay.dayName,
     firstReading: {
       title: "First Reading",
-      reference: "Unable to load",
-      text: "Could not fetch today's readings. Please check your connection and try again.",
+      reference: "Unavailable",
+      text: "Could not load today's readings. Please check your internet connection.",
     },
-    psalm: {
-      title: "Responsorial Psalm",
-      reference: "",
-      text: "",
-    },
+    psalm: { title: "Responsorial Psalm", reference: "", text: "" },
     gospel: {
       title: "Gospel",
-      reference: "Unable to load",
-      text: "Could not fetch today's Gospel. Please check your connection and try again.",
+      reference: "Unavailable",
+      text: "Could not load today's Gospel. Please check your internet connection.",
     },
     reflectionQuestions: [
       "Take a moment of silent prayer.",
@@ -99,60 +52,117 @@ function fallbackReadings(): DailyReadings {
   };
 }
 
-// ── Main fetch function ───────────────────────────────────────────────────────
 export async function fetchDailyReadings(): Promise<DailyReadings> {
   try {
-    const code = todayCode();
-    const url = `https://bible.usccb.org/bible/readings/${code}.cfm`;
-
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-    });
-
+    const date = formatDate();
+    // Aelf API - free, accurate Catholic readings, no key needed
+    const url = `https://api.aelf.org/v1/messes/${date}/france`;
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const html = await res.text();
+    const data = await res.json();
+    const messe = data?.messes?.[0]; // First Mass of the day
+    if (!messe) throw new Error("No Mass data");
+
+    const lectures = messe.lectures ?? [];
     const litDay = getLiturgicalDay();
 
-    // ── Parse sections by their heading labels ─────────────────────────────
-    // Split the page by reading section divs
-    const sectionRegex = /<div[^>]*class="[^"]*b-verse[^"]*"[^>]*>([\s\S]*?)(?=<div[^>]*class="[^"]*b-verse|$)/gi;
-    const sections: string[] = [];
-    let m: RegExpExecArray | null;
-    while ((m = sectionRegex.exec(html)) !== null) {
-      sections.push(m[1]);
+    let firstReading: Reading = fallbackReadings().firstReading;
+    let psalm: Reading = fallbackReadings().psalm;
+    let secondReading: Reading | undefined;
+    let gospel: Reading = fallbackReadings().gospel;
+
+    for (const l of lectures) {
+      const type: string = (l.type ?? "").toLowerCase();
+      const ref = l.ref ?? "";
+      const text = l.contenu ?? l.intro_lue ?? "";
+
+      if (
+        type.includes("lecture_1") ||
+        type === "première lecture" ||
+        type.includes("1")
+      ) {
+        firstReading = { title: "First Reading", reference: ref, text };
+      } else if (type.includes("psaume") || type.includes("psalm")) {
+        psalm = { title: "Responsorial Psalm", reference: ref, text };
+      } else if (
+        type.includes("lecture_2") ||
+        type.includes("2ème") ||
+        type.includes("second")
+      ) {
+        secondReading = { title: "Second Reading", reference: ref, text };
+      } else if (
+        type.includes("evangile") ||
+        type.includes("gospel") ||
+        type.includes("évangile")
+      ) {
+        gospel = { title: "Gospel", reference: ref, text };
+      }
     }
 
-    // Identify sections by keywords
-    const find = (keyword: string) =>
-      sections.find(s => s.toLowerCase().includes(keyword.toLowerCase())) ?? "";
-
-    const firstReadingHtml = find("first reading");
-    const psalmHtml = find("responsorial psalm");
-    const secondReadingHtml = find("second reading");
-    const gospelHtml = find("gospel");
-
-    const firstReading = parseReading(firstReadingHtml, "First Reading")
-      ?? fallbackReadings().firstReading;
-    const psalm = parseReading(psalmHtml, "Responsorial Psalm")
-      ?? fallbackReadings().psalm;
-    const gospel = parseReading(gospelHtml, "Gospel")
-      ?? fallbackReadings().gospel;
-    const secondReading = secondReadingHtml
-      ? parseReading(secondReadingHtml, "Second Reading") ?? undefined
-      : undefined;
-
     return {
-      date: dateStr(),
-      liturgicalDay: litDay.dayName,
+      date: todayISO(),
+      liturgicalDay: messe.nom ?? litDay.dayName,
       firstReading,
       psalm,
-      secondReading: secondReading ?? undefined,
+      secondReading,
       gospel,
       reflectionQuestions: generateReflections(gospel.reference),
     };
   } catch (e) {
     console.warn("Readings fetch error:", e);
-    return fallbackReadings();
+
+    // Fallback to USCCB direct reading page as plain text
+    try {
+      return await fetchUSCCBFallback();
+    } catch {
+      return fallbackReadings();
+    }
   }
+}
+
+// Secondary fallback using the Universalis API (free)
+async function fetchUSCCBFallback(): Promise<DailyReadings> {
+  const d = new Date();
+  const url = `https://universalis.com/${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}/jsonpmass.js`;
+  const res = await fetch(url);
+  const text = await res.text();
+
+  // Universalis returns JSONP — strip the wrapper
+  const json = text.replace(/^.*?\(/, "").replace(/\);?\s*$/, "");
+  const data = JSON.parse(json);
+
+  const litDay = getLiturgicalDay();
+  const readings: Reading[] =
+    data?.Mass?.map((item: any) => ({
+      title: item.heading ?? "Reading",
+      reference: item.source ?? "",
+      text: (item.text ?? []).join("\n"),
+    })) ?? [];
+
+  const firstReading =
+    readings.find(
+      (r) =>
+        r.title.toLowerCase().includes("reading") &&
+        !r.title.toLowerCase().includes("second"),
+    ) ?? fallbackReadings().firstReading;
+  const psalm =
+    readings.find((r) => r.title.toLowerCase().includes("psalm")) ??
+    fallbackReadings().psalm;
+  const secondReading = readings.find((r) =>
+    r.title.toLowerCase().includes("second"),
+  );
+  const gospel =
+    readings.find((r) => r.title.toLowerCase().includes("gospel")) ??
+    fallbackReadings().gospel;
+
+  return {
+    date: todayISO(),
+    liturgicalDay: data?.dayname?.[0] ?? litDay.dayName,
+    firstReading,
+    psalm,
+    secondReading,
+    gospel,
+    reflectionQuestions: generateReflections(gospel.reference),
+  };
 }
