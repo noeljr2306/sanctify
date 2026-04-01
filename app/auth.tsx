@@ -339,7 +339,7 @@ export default function AuthScreen() {
                     ]}
                   >
                     <Image
-                      source={require("../assets/cross.png")}
+                      source={require("../assets/images/logo.png")}
                       style={[
                         s.crossImg,
                         keyboardOpen && { width: 60, height: 60 },
